@@ -1085,6 +1085,90 @@
       "computedHash": "54aab0709108e3849ace294cf21ddeb53dd375242e5b8806becd1a0837293828",
       "installMode": "copy"
     },
+    "li-audit": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-audit/SKILL.md",
+      "computedHash": "7e0a272f3eb58e9ca0d555ff93001575810450d1f42e9bb3a22c6e0e1c298d7a",
+      "installMode": "copy"
+    },
+    "li-carousel": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-carousel/SKILL.md",
+      "computedHash": "0550a060f692cd1d3ab900abbafe3921a65d74656f33bb5fa8968fc4946e4948",
+      "installMode": "copy"
+    },
+    "li-comment": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-comment/SKILL.md",
+      "computedHash": "b7787462aeaf0ea93cdef12367a8f7eeb17ab99a9bd12c52ed7f7e2edc525e6c",
+      "installMode": "copy"
+    },
+    "li-dm": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-dm/SKILL.md",
+      "computedHash": "573e94e05d55cd63db1d3ddeaa021aeabfbb27e441ebbeca516ebfca4cb56dde",
+      "installMode": "copy"
+    },
+    "li-human": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-human/SKILL.md",
+      "computedHash": "beae3f67b78f0be72b7026fec0df546ed001bc95a77685b007052310d6a19ab7",
+      "installMode": "copy"
+    },
+    "li-inbox": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-inbox/SKILL.md",
+      "computedHash": "d3d65f9b9fb3aa68562884c760192cd3cefd7b463dad8a0e3bec4178f6d5d7c7",
+      "installMode": "copy"
+    },
+    "li-plan": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-plan/SKILL.md",
+      "computedHash": "22df0338d382c477b1ab84b5dd47352daedd541f171b141d8657bba0c4c0d5dd",
+      "installMode": "copy"
+    },
+    "li-post": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-post/SKILL.md",
+      "computedHash": "8a9d7909ddf0d7b6a4a5583359821915a8d548c9f86c0696f07c80828b9c994d",
+      "installMode": "copy"
+    },
+    "li-profile": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-profile/SKILL.md",
+      "computedHash": "ea1fc8ce4455e5b37b848baa613609bc9f9bd3f6f8043afb08002dd2c4e2da0c",
+      "installMode": "copy"
+    },
+    "li-publish": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-publish/SKILL.md",
+      "computedHash": "c9245db4fb2df3bdee8a2f1ad5d8708b578f766112f7fde08809f886d15c145d",
+      "installMode": "copy"
+    },
+    "li-reply": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-reply/SKILL.md",
+      "computedHash": "6e811496ba36e70278de10e4b5c01c8174aa4022ddd8a313e0e00752f1f8cc3e",
+      "installMode": "copy"
+    },
+    "li-repurpose": {
+      "source": "postzen-dev/linkedin-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/li-repurpose/SKILL.md",
+      "computedHash": "916ab765e2b5b4b8bef7e5c77031ddb2fb59c6dc543c26cc413a586eb96170cb",
+      "installMode": "copy"
+    },
     "link-building": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
