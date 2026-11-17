@@ -1,0 +1,29 @@
+# Render blueprint za WhatsApp Jarvisa.
+# Na render.com: New → Blueprint → poveži ovaj repozitorij. Render pročita ovu datoteku.
+# Vrijednosti (ključeve i tokene) upisuješ u Render dashboardu; ovdje se ne spremaju.
+services:
+  - type: web
+    name: whatsapp-jarvis
+    runtime: node
+    plan: free
+    rootDir: whatsapp-jarvis
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: ALLOWED_NUMBERS
+        sync: false
+      - key: ASSISTANT_NAME
+        value: Jarvis
+      - key: TZ
+        value: Europe/Sarajevo
