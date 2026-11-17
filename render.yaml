@@ -1,4 +1,4 @@
-# Render blueprint za WhatsApp Jarvisa.
+# Render blueprint za Telegram Jarvisa.
 # Na render.com: New → Blueprint → poveži ovaj repozitorij. Render pročita ovu datoteku.
 # Vrijednosti (ključeve i tokene) upisuješ u Render dashboardu; ovdje se ne spremaju.
 services:
@@ -13,15 +13,9 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
-      - key: WHATSAPP_TOKEN
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: WHATSAPP_PHONE_NUMBER_ID
-        sync: false
-      - key: WHATSAPP_VERIFY_TOKEN
-        sync: false
-      - key: WHATSAPP_APP_SECRET
-        sync: false
-      - key: ALLOWED_NUMBERS
+      - key: TELEGRAM_ALLOWED_CHAT_IDS
         sync: false
       - key: ASSISTANT_NAME
         value: Jarvis
