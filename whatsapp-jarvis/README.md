@@ -16,7 +16,7 @@ Ti (WhatsApp)  ->  Meta WhatsApp Cloud API  ->  ovaj server (webhook)  ->  Claud
 
 ## Što ti treba
 
-1. **Anthropic API ključ** s [console.anthropic.com](https://console.anthropic.com). Plaća se prema potrošnji; običan chat stoji nekoliko centi dnevno.
+1. **Google Gemini API ključ** (besplatan) s [aistudio.google.com](https://aistudio.google.com) → Get API key. Besplatan uz dnevno ograničenje broja poruka, dovoljno za osobnog asistenta.
 2. **Meta developer račun** na [developers.facebook.com](https://developers.facebook.com). Besplatan je.
 3. **Broj za asistenta.** Asistent ne može koristiti broj koji je već aktivan u tvojoj WhatsApp aplikaciji. Za početak Meta daje besplatni **testni broj**, a kasnije možeš dodati vlastiti drugi broj (npr. jeftinu drugu SIM karticu).
 4. **Hosting** s javnim HTTPS linkom, npr. [Render](https://render.com) ili [Railway](https://railway.app).
@@ -64,4 +64,5 @@ Za test s mobitela treba ti javni link, npr. `npx localtunnel --port 3000`.
 ## Napomene
 - Besplatni Render servis zaspi nakon 15 minuta neaktivnosti, pa prva poruka nakon pauze može kasniti oko 30 sekundi.
 - Povijest razgovora sprema se u `history.json`. Na besplatnom hostingu briše se pri svakom ponovnom pokretanju.
-- Model: `claude-opus-5-5` s niskim effortom za brze odgovore. Ako model odbije zahtjev, API ga sam ponovi na rezervnom modelu (server-side fallback).
+- Model: `gemini-2.0-flash` (besplatni Gemini API). Promijeni ga varijablom `GEMINI_MODEL` ako želiš drugi.
+- Na besplatnom Geminiju Google smije koristiti poruke za poboljšanje modela. Ime asistenta ostaje "Jarvis" (postavka `ASSISTANT_NAME`).

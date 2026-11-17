@@ -1,9 +1,8 @@
 // Jarvis za WhatsApp: prima poruke preko službenog WhatsApp Cloud API webhooka,
-// pita Claude i šalje odgovor natrag u isti razgovor.
+// pita Google Gemini (besplatni API) i šalje odgovor natrag u isti razgovor.
 import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import Anthropic from "@anthropic-ai/sdk";
 
 const env = (name, fallback) => {
   const v = process.env[name] ?? fallback;
@@ -25,7 +24,10 @@ const GRAPH_VERSION = process.env.GRAPH_API_VERSION || "v21.0";
 const HISTORY_FILE = process.env.HISTORY_FILE || "./history.json";
 const MAX_TURNS = 30;
 
-const client = new Anthropic(); // čita ANTHROPIC_API_KEY
+// Gemini (besplatni API ključ s aistudio.google.com)
+const GEMINI_KEY = env("GEMINI_API_KEY");
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM = `Ti si ${ASSISTANT_NAME}, osobni AI asistent koji s korisnikom razgovara preko WhatsAppa.
 Ton: smiren, uglađen i koristan, s malo diskretnog humora.${USER_NAME ? ` Korisnika oslovljavaj s "${USER_NAME}".` : ""}
@@ -42,15 +44,13 @@ function saveHistory() {
 }
 function turnsFor(number) {
   const t = history[number] || [];
-  // razgovor mora početi korisnikovom porukom
-  while (t.length && t[0].role !== "user") t.shift();
+  while (t.length && t[0].role !== "user") t.shift(); // razgovor mora početi korisnikovom porukom
   return t;
 }
 
 // ---------- WhatsApp slanje ----------
 async function sendWhatsApp(to, body) {
-  // WhatsApp dopušta do 4096 znakova po poruci
-  const parts = [];
+  const parts = []; // WhatsApp dopušta do 4096 znakova po poruci
   for (let rest = body; rest.length; ) {
     let cut = rest.length <= 4000 ? rest.length : rest.lastIndexOf("\n", 4000);
     if (cut < 1000) cut = Math.min(4000, rest.length);
@@ -75,34 +75,49 @@ async function markRead(messageId) {
   }).catch(() => {});
 }
 
-// ---------- Claude ----------
-async function askClaude(number, text) {
+// ---------- Gemini ----------
+async function askGemini(number, text) {
   const turns = turnsFor(number);
   turns.push({ role: "user", content: text });
   const now = new Date().toLocaleString("hr-HR", { dateStyle: "full", timeStyle: "short", timeZone: process.env.TZ || "Europe/Sarajevo" });
 
+  // Gemini koristi uloge "user" i "model"; naš "assistant" mapira se na "model".
+  const contents = turns.slice(-MAX_TURNS).map((t) => ({
+    role: t.role === "assistant" ? "model" : "user",
+    parts: [{ text: t.content }],
+  }));
+
   let reply;
   try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 16000,
-      output_config: { effort: "low" }, // brzi odgovori za chat
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default", // ako model odbije zahtjev, API ga sam ponovi na rezervnom modelu
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [...turns.slice(-MAX_TURNS), { role: "system", content: `Trenutni datum i vrijeme: ${now}.` }],
+    const res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_KEY)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: `${SYSTEM}\n\nTrenutni datum i vrijeme: ${now}.` }] },
+        contents,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+      }),
     });
-    if (response.stop_reason === "refusal") {
-      reply = "Na to ne mogu odgovoriti. Probaj pitati drugačije.";
-    } else {
-      reply = response.content.filter((b) => b.type === "text").map((b) => b.text).join("\n").trim()
-        || "Hmm, nisam ništa smislio. Pokušaj ponovno.";
+
+    if (!res.ok) {
+      const body = await res.text();
+      turns.pop();
+      if (res.status === 429) return "Previše poruka u kratkom vremenu (besplatna granica Geminija). Pričekaj minutu pa pokušaj ponovno.";
+      if (res.status === 400 && /API key/i.test(body)) { console.error("Neispravan GEMINI_API_KEY"); return "Asistent nije ispravno podešen (API ključ)."; }
+      console.error("Gemini greška:", res.status, body.slice(0, 300));
+      return "Gemini trenutno nije dostupan. Pokušaj malo kasnije.";
+    }
+
+    const data = await res.json();
+    const cand = data.candidates?.[0];
+    reply = cand?.content?.parts?.map((p) => p.text).filter(Boolean).join("").trim();
+    if (!reply) {
+      turns.pop();
+      if (cand?.finishReason === "SAFETY") return "Na to ne mogu odgovoriti. Probaj pitati drugačije.";
+      return "Hmm, nisam ništa smislio. Pokušaj ponovno.";
     }
   } catch (err) {
     turns.pop();
-    if (err instanceof Anthropic.RateLimitError) return "Previše poruka u kratkom vremenu. Pričekaj minutu pa pokušaj ponovno.";
-    if (err instanceof Anthropic.AuthenticationError) { console.error("Neispravan ANTHROPIC_API_KEY"); return "Asistent nije ispravno podešen (API ključ)."; }
-    if (err instanceof Anthropic.APIError) { console.error("Claude API greška:", err.status, err.message); return "Claude trenutno nije dostupan. Pokušaj malo kasnije."; }
     console.error("Neočekivana greška:", err);
     return "Nešto je pošlo po zlu. Pokušaj ponovno.";
   }
@@ -134,7 +149,7 @@ async function handleMessage(msg) {
     await sendWhatsApp(from, "Gotovo, počinjemo ispočetka. Što trebaš?");
     return;
   }
-  const reply = await askClaude(from, text);
+  const reply = await askGemini(from, text);
   await sendWhatsApp(from, reply);
 }
 
@@ -183,4 +198,4 @@ http.createServer((req, res) => {
   }
 
   res.writeHead(404).end();
-}).listen(PORT, () => console.log(`${ASSISTANT_NAME} sluša na portu ${PORT}`));
+}).listen(PORT, () => console.log(`${ASSISTANT_NAME} (Gemini ${GEMINI_MODEL}) sluša na portu ${PORT}`));
