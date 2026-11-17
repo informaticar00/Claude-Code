@@ -49,6 +49,26 @@ function turnsFor(chatId) {
   return t;
 }
 
+// POST s timeoutom i ponovnim pokušajem (mreža zna biti spora, pogotovo nakon buđenja servera).
+async function postJSON(url, payload, { tries = 3, timeoutMs = 30000, label = "" } = {}) {
+  let last;
+  for (let i = 1; i <= tries; i++) {
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      last = e;
+      console.warn(`${label} pokušaj ${i}/${tries} nije uspio: ${e.name} ${e.message || ""}`.trim());
+      if (i < tries) await new Promise((r) => setTimeout(r, 1500 * i));
+    }
+  }
+  throw last;
+}
+
 // ---------- Telegram slanje ----------
 async function sendTelegram(chatId, body) {
   for (let rest = body; rest.length; ) { // Telegram: do 4096 znakova po poruci
@@ -56,12 +76,14 @@ async function sendTelegram(chatId, body) {
     if (cut < 1000) cut = Math.min(4000, rest.length);
     const text = rest.slice(0, cut);
     rest = rest.slice(cut).trimStart();
-    const res = await fetch(`${TG}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-    });
-    if (!res.ok) console.error("Telegram greška pri slanju:", res.status, await res.text());
+    try {
+      const res = await postJSON(`${TG}/sendMessage`,
+        JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+        { timeoutMs: 20000, label: "Telegram sendMessage" });
+      if (!res.ok) console.error("Telegram greška pri slanju:", res.status, await res.text());
+    } catch (e) {
+      console.error("Telegram slanje konačno palo:", e.name, e.message);
+    }
   }
 }
 async function sendTyping(chatId) {
@@ -82,21 +104,21 @@ async function askGemini(chatId, text) {
     parts: [{ text: t.content }],
   }));
 
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: `${SYSTEM}\n\nTrenutni datum i vrijeme: ${now}.` }] },
+    contents,
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+  });
+
   let reply;
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_KEY)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: `${SYSTEM}\n\nTrenutni datum i vrijeme: ${now}.` }] },
-        contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-      }),
-    });
+    const res = await postJSON(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_KEY)}`, payload,
+      { tries: 3, timeoutMs: 35000, label: "Gemini" });
     if (!res.ok) {
       const t = await res.text(); turns.pop();
       if (res.status === 429) return "Previše poruka u kratkom vremenu (besplatna granica Geminija). Pričekaj minutu pa pokušaj ponovno.";
       if (res.status === 400 && /API key/i.test(t)) { console.error("Neispravan GEMINI_API_KEY"); return "Asistent nije ispravno podešen (Gemini ključ)."; }
+      if (res.status === 404) { console.error("Gemini model nedostupan:", t.slice(0, 200)); return "Model nije dostupan. Promijeni GEMINI_MODEL u postavkama."; }
       console.error("Gemini greška:", res.status, t.slice(0, 300));
       return "Gemini trenutno nije dostupan. Pokušaj malo kasnije.";
     }
@@ -109,8 +131,8 @@ async function askGemini(chatId, text) {
       return "Hmm, nisam ništa smislio. Pokušaj ponovno.";
     }
   } catch (err) {
-    turns.pop(); console.error("Neočekivana greška:", err);
-    return "Nešto je pošlo po zlu. Pokušaj ponovno.";
+    turns.pop(); console.error("Gemini konačno palo:", err.name, err.message);
+    return "Gemini je sad spor ili nedostupan (mrežni timeout). Pošalji poruku još jednom za koji trenutak.";
   }
 
   turns.push({ role: "assistant", content: reply });
