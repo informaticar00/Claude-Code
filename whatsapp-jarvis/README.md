@@ -14,7 +14,7 @@ Ti (Telegram)  ->  Telegram Bot API  ->  ovaj server (webhook)  ->  Gemini API
 
 - Server se sam poveže na Telegram webhook pri pokretanju (na Renderu preko `RENDER_EXTERNAL_URL`).
 - Pamti zadnjih 30 poruka razgovora. Pošalji `/reset` za novi razgovor.
-- `/start` ti pokaže tvoj **chat ID** (upiši ga u `TELEGRAM_ALLOWED_CHAT_IDS` da bot bude samo tvoj).
+- **Privatan po defaultu:** dok ne upišeš svoj chat ID u `TELEGRAM_ALLOWED_CHAT_IDS`, bot nikome ne odgovara AI-jem — svakoj poruci samo vrati taj chat ID. Tako saznaš svoj ID i zaključaš bota na sebe.
 
 ## Što ti treba
 
@@ -30,7 +30,8 @@ Ti (Telegram)  ->  Telegram Bot API  ->  ovaj server (webhook)  ->  Gemini API
    - `TELEGRAM_BOT_TOKEN` → token od @BotFather
    - `TELEGRAM_ALLOWED_CHAT_IDS` → ostavi prazno za početak (kasnije upišeš svoj chat ID)
 3. **Deploy Blueprint.** Kad je status **Live**, server se sam poveže na Telegram.
-4. Otvori svog bota u Telegramu (ime koje si dao kod @BotFather), pošalji `/start`, pa piši.
+4. Otvori svog bota u Telegramu, pošalji bilo što — vratit će ti tvoj **chat ID**.
+5. Taj chat ID upiši u Renderu u `TELEGRAM_ALLOWED_CHAT_IDS` i spremi (servis se ponovno pokrene). Od tada Jarvis odgovara samo tebi.
 
 ## Lokalno pokretanje
 

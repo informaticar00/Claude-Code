@@ -28,7 +28,7 @@ const WH_SECRET = crypto.createHash("sha256").update(TG_TOKEN).digest("hex").sli
 const TG = `https://api.telegram.org/bot${TG_TOKEN}`;
 
 const GEMINI_KEY = env("GEMINI_API_KEY");
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM = `Ti si ${ASSISTANT_NAME}, osobni AI asistent koji s korisnikom razgovara preko Telegrama.
@@ -49,6 +49,26 @@ function turnsFor(chatId) {
   return t;
 }
 
+// POST s timeoutom i ponovnim pokušajem (mreža zna biti spora, pogotovo nakon buđenja servera).
+async function postJSON(url, payload, { tries = 3, timeoutMs = 30000, label = "" } = {}) {
+  let last;
+  for (let i = 1; i <= tries; i++) {
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      last = e;
+      console.warn(`${label} pokušaj ${i}/${tries} nije uspio: ${e.name} ${e.message || ""}`.trim());
+      if (i < tries) await new Promise((r) => setTimeout(r, 1500 * i));
+    }
+  }
+  throw last;
+}
+
 // ---------- Telegram slanje ----------
 async function sendTelegram(chatId, body) {
   for (let rest = body; rest.length; ) { // Telegram: do 4096 znakova po poruci
@@ -56,12 +76,14 @@ async function sendTelegram(chatId, body) {
     if (cut < 1000) cut = Math.min(4000, rest.length);
     const text = rest.slice(0, cut);
     rest = rest.slice(cut).trimStart();
-    const res = await fetch(`${TG}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-    });
-    if (!res.ok) console.error("Telegram greška pri slanju:", res.status, await res.text());
+    try {
+      const res = await postJSON(`${TG}/sendMessage`,
+        JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+        { timeoutMs: 20000, label: "Telegram sendMessage" });
+      if (!res.ok) console.error("Telegram greška pri slanju:", res.status, await res.text());
+    } catch (e) {
+      console.error("Telegram slanje konačno palo:", e.name, e.message);
+    }
   }
 }
 async function sendTyping(chatId) {
@@ -82,21 +104,21 @@ async function askGemini(chatId, text) {
     parts: [{ text: t.content }],
   }));
 
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: `${SYSTEM}\n\nTrenutni datum i vrijeme: ${now}.` }] },
+    contents,
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+  });
+
   let reply;
   try {
-    const res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_KEY)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: `${SYSTEM}\n\nTrenutni datum i vrijeme: ${now}.` }] },
-        contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-      }),
-    });
+    const res = await postJSON(`${GEMINI_URL}?key=${encodeURIComponent(GEMINI_KEY)}`, payload,
+      { tries: 3, timeoutMs: 35000, label: "Gemini" });
     if (!res.ok) {
       const t = await res.text(); turns.pop();
       if (res.status === 429) return "Previše poruka u kratkom vremenu (besplatna granica Geminija). Pričekaj minutu pa pokušaj ponovno.";
       if (res.status === 400 && /API key/i.test(t)) { console.error("Neispravan GEMINI_API_KEY"); return "Asistent nije ispravno podešen (Gemini ključ)."; }
+      if (res.status === 404) { console.error("Gemini model nedostupan:", t.slice(0, 200)); return "Model nije dostupan. Promijeni GEMINI_MODEL u postavkama."; }
       console.error("Gemini greška:", res.status, t.slice(0, 300));
       return "Gemini trenutno nije dostupan. Pokušaj malo kasnije.";
     }
@@ -109,8 +131,8 @@ async function askGemini(chatId, text) {
       return "Hmm, nisam ništa smislio. Pokušaj ponovno.";
     }
   } catch (err) {
-    turns.pop(); console.error("Neočekivana greška:", err);
-    return "Nešto je pošlo po zlu. Pokušaj ponovno.";
+    turns.pop(); console.error("Gemini konačno palo:", err.name, err.message);
+    return "Gemini je sad spor ili nedostupan (mrežni timeout). Pošalji poruku još jednom za koji trenutak.";
   }
 
   turns.push({ role: "assistant", content: reply });
@@ -130,18 +152,24 @@ async function handleUpdate(update) {
   if (seen.size > 2000) seen.delete(seen.values().next().value);
 
   const chatId = String(msg.chat.id);
-  if (ALLOWED.length && !ALLOWED.includes(chatId)) {
-    console.log(`Ignoriram poruku s chat ID ${chatId} (nije na popisu)`);
-    await sendTelegram(chatId, "Ovaj asistent je privatan.");
+  const text = (msg.text || "").trim();
+
+  // Zatvoreno po defaultu: bez odobrenja nema AI-ja ni osobnih podataka (USER_NAME/ABOUT_ME).
+  // Prazan popis ipak dopušta saznati vlastiti chat ID, da vlasnik zaključa bota na sebe.
+  if (!ALLOWED.includes(chatId)) {
+    console.log(`Neovlašten chat ID ${chatId} (dopušteno ih je ${ALLOWED.length})`);
+    const why = ALLOWED.length === 0
+      ? `Asistent još nije aktiviran. Tvoj chat ID je ${chatId}. Vlasnik ga treba dodati u TELEGRAM_ALLOWED_CHAT_IDS i ponovno pokrenuti server.`
+      : "Ovaj asistent je privatan.";
+    await sendTelegram(chatId, why);
     return;
   }
 
-  const text = (msg.text || "").trim();
   if (!text) { await sendTelegram(chatId, "Za sada razumijem samo tekstualne poruke."); return; }
 
   if (/^\/start\b/i.test(text)) {
     const hi = USER_NAME ? `, ${USER_NAME}` : "";
-    await sendTelegram(chatId, `Dobar dan${hi}. Ja sam ${ASSISTANT_NAME}. Pitaj me što god trebaš. (Tvoj chat ID je ${chatId} — javi ga ako želiš da budem samo tvoj.)`);
+    await sendTelegram(chatId, `Dobar dan${hi}. Ja sam ${ASSISTANT_NAME}. Pitaj me što god trebaš.`);
     return;
   }
   if (/^\/(reset|novi)\b/i.test(text)) {
