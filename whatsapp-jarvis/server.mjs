@@ -28,7 +28,7 @@ const WH_SECRET = crypto.createHash("sha256").update(TG_TOKEN).digest("hex").sli
 const TG = `https://api.telegram.org/bot${TG_TOKEN}`;
 
 const GEMINI_KEY = env("GEMINI_API_KEY");
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM = `Ti si ${ASSISTANT_NAME}, osobni AI asistent koji s korisnikom razgovara preko Telegrama.
