@@ -13,3 +13,4 @@ Skillovi koji pomažu pronaći i koristiti druge skillove.
 | [`find-skills`](../.claude/skills/find-skills/SKILL.md) | vercel-labs | Pronađi i instaliraj nove skillove |
 | [`graphify`](../.claude/skills/graphify/SKILL.md) | graphify | Graf znanja o kodu (`/graphify`) |
 | [`writing-skills`](../.claude/skills/writing-skills/SKILL.md) | superpowers | Pisanje i testiranje novih skillova |
+| [`reverse-engineer-wifi-router`](../.claude/skills/reverse-engineer-wifi-router/SKILL.md) | reverse-engineer-Wi-Fi-router | Analiza vlastitog Wi-Fi rutera iz fotografije: privatnost i brzina |
