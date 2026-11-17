@@ -1,68 +1,49 @@
-# Jarvis za WhatsApp
+# Jarvis za Telegram
 
-Osobni AI asistent (Claude) s kojim se dopisuješ u WhatsAppu kao s običnim kontaktom.
-Koristi **službeni WhatsApp Cloud API** tvrtke Meta, pa ti broj neće biti blokiran.
+Osobni AI asistent (Gemini) s kojim se dopisuješ u Telegramu kao s običnim kontaktom.
+Besplatno: Telegram bot (bez registracije preduzeća) + besplatni Google Gemini API.
+
+> Mapa se i dalje zove `whatsapp-jarvis` zbog povijesti; sada radi preko Telegrama.
 
 ## Kako radi
 
 ```
-Ti (WhatsApp)  ->  Meta WhatsApp Cloud API  ->  ovaj server (webhook)  ->  Claude API
-               <-                            <-   odgovor               <-
+Ti (Telegram)  ->  Telegram Bot API  ->  ovaj server (webhook)  ->  Gemini API
+               <-                      <-   odgovor              <-
 ```
 
-- Odgovara samo brojevima iz `ALLOWED_NUMBERS`. Poruke od svih ostalih ignorira, pa ti nitko drugi ne troši kredit.
-- Pamti zadnjih 30 poruka razgovora. Pošalji `reset` za novi razgovor.
-- Za sada razumije samo tekst, ne glasovne poruke ni slike.
+- Server se sam poveže na Telegram webhook pri pokretanju (na Renderu preko `RENDER_EXTERNAL_URL`).
+- Pamti zadnjih 30 poruka razgovora. Pošalji `/reset` za novi razgovor.
+- `/start` ti pokaže tvoj **chat ID** (upiši ga u `TELEGRAM_ALLOWED_CHAT_IDS` da bot bude samo tvoj).
 
 ## Što ti treba
 
-1. **Google Gemini API ključ** (besplatan) s [aistudio.google.com](https://aistudio.google.com) → Get API key. Besplatan uz dnevno ograničenje broja poruka, dovoljno za osobnog asistenta.
-2. **Meta developer račun** na [developers.facebook.com](https://developers.facebook.com). Besplatan je.
-3. **Broj za asistenta.** Asistent ne može koristiti broj koji je već aktivan u tvojoj WhatsApp aplikaciji. Za početak Meta daje besplatni **testni broj**, a kasnije možeš dodati vlastiti drugi broj (npr. jeftinu drugu SIM karticu).
-4. **Hosting** s javnim HTTPS linkom, npr. [Render](https://render.com) ili [Railway](https://railway.app).
+1. **Telegram bot token** — u Telegramu otvori **@BotFather** → `/newbot` → dobiješ token (odmah, besplatno, bez verifikacije).
+2. **Google Gemini API ključ** (besplatan) — [aistudio.google.com](https://aistudio.google.com) → Get API key.
+3. **Hosting** — Render (besplatno), preko `render.yaml` blueprinta u korijenu ovog repozitorija.
 
-## Postavljanje korak po korak
+## Postavljanje (Render)
 
-### 1. Meta aplikacija
-1. Na developers.facebook.com: **My Apps → Create App → Other → Business**.
-2. Dodaj proizvod **WhatsApp** i otvori **WhatsApp → API Setup**.
-3. Zapiši **Phone number ID** i privremeni **Access token** (vrijedi 24 h; trajni token je opisan dolje).
-4. U polju **To** dodaj svoj osobni broj i potvrdi ga kodom koji stigne na WhatsApp.
-5. **App settings → Basic** → zapiši **App Secret**.
-
-### 2. Objavi server (primjer: Render)
-1. Ovu mapu stavi na GitHub (već je u ovom repozitoriju).
-2. Render → **New → Web Service** → odaberi repozitorij.
-   - Root directory: `whatsapp-jarvis`
-   - Build command: `npm install`
-   - Start command: `npm start`
-3. Pod **Environment** upiši sve varijable iz `.env.example`.
-4. Kad se objavi, dobiješ link oblika `https://jarvis-xxxx.onrender.com`.
-
-### 3. Spoji webhook
-1. U Meti: **WhatsApp → Configuration → Webhook → Edit**.
-   - Callback URL: `https://jarvis-xxxx.onrender.com/webhook`
-   - Verify token: isti tekst kao `WHATSAPP_VERIFY_TOKEN`
-2. **Verify and save**, zatim pod **Webhook fields** uključi **messages**.
-
-### 4. Isprobaj
-Pošalji poruku testnom broju iz Meta API Setupa (spremi ga u kontakte kao "Jarvis").
-
-## Trajni token
-Privremeni token istekne za 24 sata. Za trajni:
-**Business Settings → Users → System users → Add** (uloga Admin) → **Generate token** za svoju aplikaciju, s dozvolama `whatsapp_business_messaging` i `whatsapp_business_management`. Taj token upiši u `WHATSAPP_TOKEN`.
+1. Na [render.com](https://render.com) → **New → Blueprint** → poveži ovaj repozitorij.
+2. Render pročita `render.yaml` i traži varijable. Upiši:
+   - `GEMINI_API_KEY` → tvoj Gemini ključ
+   - `TELEGRAM_BOT_TOKEN` → token od @BotFather
+   - `TELEGRAM_ALLOWED_CHAT_IDS` → ostavi prazno za početak (kasnije upišeš svoj chat ID)
+3. **Deploy Blueprint.** Kad je status **Live**, server se sam poveže na Telegram.
+4. Otvori svog bota u Telegramu (ime koje si dao kod @BotFather), pošalji `/start`, pa piši.
 
 ## Lokalno pokretanje
+
 ```bash
 cd whatsapp-jarvis
 npm install
-cp .env.example .env    # popuni vrijednosti
+cp .env.example .env    # popuni GEMINI_API_KEY i TELEGRAM_BOT_TOKEN; za webhook lokalno treba javni URL
 node --env-file=.env server.mjs
 ```
-Za test s mobitela treba ti javni link, npr. `npx localtunnel --port 3000`.
 
 ## Napomene
-- Besplatni Render servis zaspi nakon 15 minuta neaktivnosti, pa prva poruka nakon pauze može kasniti oko 30 sekundi.
-- Povijest razgovora sprema se u `history.json`. Na besplatnom hostingu briše se pri svakom ponovnom pokretanju.
-- Model: `gemini-2.0-flash` (besplatni Gemini API). Promijeni ga varijablom `GEMINI_MODEL` ako želiš drugi.
-- Na besplatnom Geminiju Google smije koristiti poruke za poboljšanje modela. Ime asistenta ostaje "Jarvis" (postavka `ASSISTANT_NAME`).
+
+- Besplatni Render servis zaspi nakon 15 minuta neaktivnosti, pa prva poruka nakon pauze može kasniti do ~50 sekundi.
+- Povijest razgovora je u `history.json`; na besplatnom hostingu briše se pri ponovnom pokretanju.
+- Model: `gemini-2.0-flash` (besplatni Gemini API). Promijeni ga varijablom `GEMINI_MODEL`.
+- Na besplatnom Geminiju Google smije koristiti poruke za poboljšanje modela. Ime asistenta ostaje "Jarvis" (`ASSISTANT_NAME`).
