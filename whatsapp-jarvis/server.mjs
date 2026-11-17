@@ -130,18 +130,24 @@ async function handleUpdate(update) {
   if (seen.size > 2000) seen.delete(seen.values().next().value);
 
   const chatId = String(msg.chat.id);
-  if (ALLOWED.length && !ALLOWED.includes(chatId)) {
-    console.log(`Ignoriram poruku s chat ID ${chatId} (nije na popisu)`);
-    await sendTelegram(chatId, "Ovaj asistent je privatan.");
+  const text = (msg.text || "").trim();
+
+  // Zatvoreno po defaultu: bez odobrenja nema AI-ja ni osobnih podataka (USER_NAME/ABOUT_ME).
+  // Prazan popis ipak dopušta saznati vlastiti chat ID, da vlasnik zaključa bota na sebe.
+  if (!ALLOWED.includes(chatId)) {
+    console.log(`Neovlašten chat ID ${chatId} (dopušteno ih je ${ALLOWED.length})`);
+    const why = ALLOWED.length === 0
+      ? `Asistent još nije aktiviran. Tvoj chat ID je ${chatId}. Vlasnik ga treba dodati u TELEGRAM_ALLOWED_CHAT_IDS i ponovno pokrenuti server.`
+      : "Ovaj asistent je privatan.";
+    await sendTelegram(chatId, why);
     return;
   }
 
-  const text = (msg.text || "").trim();
   if (!text) { await sendTelegram(chatId, "Za sada razumijem samo tekstualne poruke."); return; }
 
   if (/^\/start\b/i.test(text)) {
     const hi = USER_NAME ? `, ${USER_NAME}` : "";
-    await sendTelegram(chatId, `Dobar dan${hi}. Ja sam ${ASSISTANT_NAME}. Pitaj me što god trebaš. (Tvoj chat ID je ${chatId} — javi ga ako želiš da budem samo tvoj.)`);
+    await sendTelegram(chatId, `Dobar dan${hi}. Ja sam ${ASSISTANT_NAME}. Pitaj me što god trebaš.`);
     return;
   }
   if (/^\/(reset|novi)\b/i.test(text)) {
