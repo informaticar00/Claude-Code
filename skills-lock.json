@@ -827,6 +827,13 @@
       "computedHash": "0b9e3d177ec4e42d9b39c76ef8ee751f88cce40e3879c785a1a8c6eeabc6119d",
       "installMode": "copy"
     },
+    "convert-documents-to-markdown": {
+      "source": "firecrawl/anydoc",
+      "commit": "6feb6c2aedd69b97fa8af112ffeb187dcf79986e",
+      "sourceType": "github",
+      "skillPath": "skills/convert-documents-to-markdown/SKILL.md",
+      "computedHash": "8551a13cf56aa82e2d584a93c229ce6dbf4c3fd4e7373b20651f44e6d551e784"
+    },
     "copy-editing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
